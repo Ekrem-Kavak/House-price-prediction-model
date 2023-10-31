@@ -135,7 +135,7 @@ sns.heatmap(corr, cmap = "RdBu")
 def high_corralated_cols(dataframe, plot = False, corr_th = 0.70):
     corr = dataframe.corr()
     cor_matrix = corr.abs()
-    upper_triangle_matrix = cor_matrix.where(np.triu(np.ones(cor_matrix.shape), k=1).astype(np.bool))
+    upper_triangle_matrix = cor_matrix.where(np.triu(np.ones(cor_matrix.shape), k=1).astype(bool))
     drop_list = [col for col in upper_triangle_matrix.columns if any(upper_triangle_matrix[col] > corr_th)]
     if plot:
         sns.set(rc={'figure.figsize': (15, 15)})
@@ -145,3 +145,66 @@ def high_corralated_cols(dataframe, plot = False, corr_th = 0.70):
 
 high_corralated_cols(df, plot = True)
 
+# GÖREV-6: Aykırı gözlem var mı inceleyiniz.
+
+# aykırı değerlerin tespit edilmesi
+def outlier_thresholds(dataframe, variable, low_quantile = 0.10, up_quantile = 0.90):
+    quantile_one = dataframe[variable].quantile(low_quantile)
+    quantile_three = dataframe[variable].quantile(up_quantile)
+    interquantile_range = quantile_three - quantile_one
+    up_limit = quantile_three + 1.5 * interquantile_range
+    low_limit = quantile_one - 1.5 * interquantile_range
+    return low_limit, up_limit
+
+# aykırı değer kontrolü
+def check_outlier(dataframe, col_name):
+    low_limit, up_limit = outlier_thresholds(dataframe, col_name)
+    if dataframe[(dataframe[col_name] > up_limit) | (dataframe[col_name] < low_limit)].any(axis = None):
+        return True
+    else:
+        return False
+
+for col in num_cols:
+    if col != "SalePrice":
+        print(col, check_outlier(df, col))
+
+# aykırı değerlerin baskılanması
+def replace_with_thresholds(dataframe, variable):
+    low_limit, up_limit = outlier_thresholds(dataframe, variable)
+    dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
+    dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
+
+for col in num_cols:
+    if col != "SalePrice":
+        replace_with_thresholds(df, col)
+
+# GÖREV-7: Eksik gözlem var mı inceleyiniz.
+
+
+
+
+def missing_values_table(dataframe, na_name = False):
+    na_columns = [col for col in dataframe.columns if dataframe[col].isnull().sum() > 0]
+
+    n_miss = dataframe[na_columns].isnull().sum().sort_values(ascending = False)
+
+    ratio = (dataframe[na_columns].isnull().sum() / dataframe.shape[0] * 100).sort_values(ascending = False)
+
+    missing_df = pd.concat([n_miss, np.round(ratio, 2)], axis = 1, keys = ['n_miss', 'ratio'])
+
+    print(missing_df, end = "\n")
+
+    if na_name:
+        return na_columns
+
+missing_values_table(df)
+
+# Bazı değişkenlerdeki boş değerler ilgili evin o özelliğe sahip olmadığını gösterir.
+no_cols = ["Alley", "BsmtQual", "BsmtExposure", "BsmtFinType1", "BsmtFinType2",
+           "FireplaceQu", "GarageType", "GarageFinish", "GarageQual", "PoolQC", "Fence", "MiscFeature"]
+
+# Kolonlardaki boşlukların "No" ifadesi ile doldurulması
+for col in no_cols:
+    df[col].fillna("No", inplace = True)
+
+missing_values_table(df)
