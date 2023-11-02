@@ -70,6 +70,7 @@ def grab_col_names(dataframe, cat_th = 10, car_th = 20):
     cat_cols = [col for col in cat_cols if col not in cat_but_car]
 
     num_cols = [col for col in dataframe.columns if dataframe[col].dtypes != "O"]
+
     num_cols = [col for col in num_cols if col not in num_but_cat]
 
     print(f"Observation: {dataframe.shape[0]}")
@@ -113,7 +114,7 @@ for col in num_cols:
 
 # GÖREV-5: Kategorik değişkenler ile hedef değişkenler incelemesini yapınız.
 
-# SalePrice değiğşkeninin kategorik değişkenler ile ilişkisi
+# SalePrice değişkeninin kategorik değişkenler ile ilişkisi
 
 def target_summary_with_cat(dataframe, target, categorical_col):
     print(pd.DataFrame({"TARGET_MEAN": dataframe.groupby(categorical_col)[target].mean()}), end = "\n\n\n")
@@ -122,7 +123,7 @@ for col in cat_cols:
     target_summary_with_cat(df, "SalePrice", col)
 
 
-# Bağımlı değiğşkenin logaritmasının incelenmesi
+# Bağımlı değişkenin logaritmasının incelenmesi
 np.log1p(df["SalePrice"]).hist(bins = 50)
 plt.show(block = True)
 
@@ -180,9 +181,6 @@ for col in num_cols:
 
 # GÖREV-7: Eksik gözlem var mı inceleyiniz.
 
-
-
-
 def missing_values_table(dataframe, na_name = False):
     na_columns = [col for col in dataframe.columns if dataframe[col].isnull().sum() > 0]
 
@@ -199,6 +197,10 @@ def missing_values_table(dataframe, na_name = False):
 
 missing_values_table(df)
 
+# FEATURE ENGINEERING
+
+# GÖREV - 1: Eksik ve aykırı gözlemler için gerekli işlemleri yapınız.
+
 # Bazı değişkenlerdeki boş değerler ilgili evin o özelliğe sahip olmadığını gösterir.
 no_cols = ["Alley", "BsmtQual", "BsmtExposure", "BsmtFinType1", "BsmtFinType2",
            "FireplaceQu", "GarageType", "GarageFinish", "GarageQual", "PoolQC", "Fence", "MiscFeature"]
@@ -208,3 +210,35 @@ for col in no_cols:
     df[col].fillna("No", inplace = True)
 
 missing_values_table(df)
+
+# Eksik değerleri mod, medyan ve aritmatik ortalama gibi değerler ile dolduralım.
+
+def quick_missing_imp(data, num_method = "median", cat_length = 20, target = "SalePrice"):
+    variables_with_na = [col for col in data.columns if data[col].isnull().sum() > 0]
+
+    temp_target = data[target]
+
+    print("# BEFORE")
+    print(data[variables_with_na].isnull().sum(), "\n\n") # Eksik giderlerin giderilmesi öncesi
+
+    # değişken object ve sınıf sayısı cat_length eşit veya altındaysa boş değerleri mod değerleri doldurma
+
+    data = data.apply(lambda x: x.fillna(x.mode()[0]) if (x.dtype == "O" and len(x.unique()) <= cat_length) else x, axis = 0)
+
+    # num_method median ise tipi object olmayan değişkenlerin boş değerleri ortalama ile doldurulur.
+    if num_method == "mean":
+        data = data.apply(lambda x: x.fillna(x.mean()) if x.dtype != "O" else x, axis = 0)
+
+    data[target] = temp_target
+
+    print("# AFTER")
+    print(num_method.upper())
+    print(data[variables_with_na].isnull().sum(), "\n\n")
+
+    return data
+
+df = quick_missing_imp(df, num_method= "median", cat_length=17)
+
+
+
+
