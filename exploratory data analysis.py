@@ -239,6 +239,120 @@ def quick_missing_imp(data, num_method = "median", cat_length = 20, target = "Sa
 
 df = quick_missing_imp(df, num_method= "median", cat_length=17)
 
+# GÖREV-2: Rare encoder uygulayınız.
+
+def rare_analyser(dataframe, target, cat_cols):
+    for col in cat_cols:
+        print(col, ":", len(dataframe[col].value_counts()))
+        print(pd.DataFrame({"COUNT": dataframe[col].value_counts(),
+                            "RATIO": dataframe[col].value_counts() / len(dataframe),
+                            "TARGET_MEAN": dataframe.groupby(col)[target].mean()}), end = "\n\n\n")
+
+rare_analyser(df, "SalePrice", cat_cols)
+
+def rare_encoder(dataframe, rare_perc):
+    temp_df = dataframe.copy()
+
+    rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == "O"
+                    and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis = None)]
+
+    for var in rare_columns:
+        tmp = temp_df[var].value_counts() / len(temp_df)
+        rare_labels = tmp[tmp < rare_perc].index
+        temp_df[var]= np.where(temp_df[var].isin(rare_labels), "Rare", temp_df[var])
+
+    return temp_df
+
+rare_encoder(df, 0.01)
+
+# GÖREV - 3: Yeni değişkenler oluşturunuz ve oluşturduğunuz değişkenlerin başına "NEW" ekleyiniz.
+
+df["NEW_1st*GrLiv"] = df["1stFlrSF"] * df["GrLivArea"]
+df["NEW_Garage*GRliv"] = (df["GarageArea"] * df["GrLivArea"])
+df["TotalQual"] = df[["OverallQual", "OverallCond", "ExterQual", "ExterCond", "BsmtCond",
+                      "BsmtFinType1", "BsmtFinType2", "HeatingQC", "KitchenQual",
+                      "Functional", "FireplaceQu", "GarageQual", "GarageCond", "Fence"]].sum(axis = 1)
+
+# Total Floor
+df["NEW_TotalFlrSF"] = df["1stFlrSF"] + df["2ndFlrSF"] # 32
+
+# Total Finished Basement Area
+df["NEW_TotalBsmtFin"] = df.BsmtFinSF1 + df.BsmtFinSF2 # 56
+
+# Porch Area
+df["NEW_PorchArea"] = df.OpenPorchSF + df.EnclosedPorch + df.ScreenPorch + df["3SsnPorch"] + df.WoodDeckSF # 93
+
+# Total House Area
+df["NEW_TotalHouseArea"] = df.NEW_TotalFlrSF + df.TotalBsmtSF # 156
+
+df["NEW_TotalSqFeet"] = df.GrLivArea + df.TotalBsmtSF # 35
 
 
+# Lot Ratio
+df["NEW_LotRatio"] = df.GrLivArea / df.LotArea # 64
+
+df["NEW_RatioArea"] = df.NEW_TotalHouseArea / df.LotArea # 57
+
+df["NEW_GarageLotRatio"] = df.GarageArea / df.LotArea # 69
+
+# MasVnrArea
+df["NEW_MasVnrRatio"] = df.MasVnrArea / df.NEW_TotalHouseArea # 36
+
+# Dif Area
+df["NEW_DifArea"] = (df.LotArea - df["1stFlrSF"] - df.GarageArea - df.NEW_PorchArea - df.WoodDeckSF) # 73
+
+
+df["NEW_OverallGrade"] = df["OverallQual"] * df["OverallCond"] # 61
+
+
+df["NEW_Restoration"] = df.YearRemodAdd - df.YearBuilt # 31
+
+df["NEW_HouseAge"] = df.YrSold - df.YearBuilt # 73
+
+df["NEW_RestorationAge"] = df.YrSold - df.YearRemodAdd # 40
+
+df["NEW_GarageAge"] = df.GarageYrBlt - df.YearBuilt # 17
+
+df["NEW_GarageRestorationAge"] = np.abs(df.GarageYrBlt - df.YearRemodAdd) # 30
+
+df["NEW_GarageSold"] = df.YrSold - df.GarageYrBlt # 48
+
+# İlgili olmayan değişkenlerin silinmesi
+drop_list = ["Street", "Alley", "LandContour", "Utilities", "LandSlope","Heating", "PoolQC", "MiscFeature","Neighborhood"]
+
+# drop_list'teki değişkenlerin düşürülmesi
+df.drop(drop_list, axis=1, inplace=True)
+
+# GÖREV - 4: Label encoding ve one-hot encoding işlemlerini uygulayınız.
+
+import warnings
+from catboost import CatBoostRegressor
+from lightgbm import LGBMRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
+from xgboost import XGBRegressor
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split, cross_val_score,GridSearchCV
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter("ignore", category=ConvergenceWarning)
+
+
+cat_cols, cat_but_car, num_cols = grab_col_names(df)
+
+def label_encoder(dataframe, binary_col):
+    labelencoder = LabelEncoder()
+    dataframe[binary_col] = labelencoder.fit_transform(dataframe[binary_col])
+    return dataframe
+
+binary_cols = [col for col in df.columns if df[col].dtypes == "O" and len(df[col].unique()) == 2]
+
+for col in binary_cols:
+    label_encoder(df, col)
 
